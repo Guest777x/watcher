@@ -1,14 +1,65 @@
+-- ui_monitor.lua
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+local pg = lp:WaitForChild("PlayerGui")
+
+local sg = Instance.new("ScreenGui")
+sg.Name = "MonitorUI"
+sg.ResetOnSpawn = false
+sg.Parent = pg
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 420, 0, 300)
+frame.Position = UDim2.new(0, 20, 0, 20)
+frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+frame.BackgroundTransparency = 0.2
+frame.BorderSizePixel = 0
+frame.Parent = sg
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, -10, 1, -10)
+scroll.Position = UDim2.new(0, 5, 0, 5)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+scroll.ScrollBarThickness = 6
+scroll.Parent = frame
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 2)
+layout.Parent = scroll
+
+local function log(text)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -8, 0, 18)
+    lbl.BackgroundTransparency = 1
+    lbl.Font = Enum.Font.Code
+    lbl.TextSize = 12
+    lbl.TextColor3 = Color3.fromRGB(0, 255, 140)
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Text = text
+    lbl.Parent = scroll
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y)
+    end)
+    scroll.CanvasPosition = Vector2.new(0, layout.AbsoluteContentSize.Y)
+end
+
+log("HOOK INSTALLED")
+
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
     if method == "FireServer" or method == "InvokeServer" then
         local full = self:GetFullName()
-        local args = {...}
-        local dump = ""
-        for i, v in ipairs(args) do
-            dump = dump .. " [" .. i .. "]=" .. tostring(v) .. "(" .. typeof(v) .. ")"
+        if full:lower():find("rebirth") or full:lower():find("trade") then
+            local args = {...}
+            local parts = {}
+            for i, v in ipairs(args) do
+                parts[i] = "[" .. i .. "]=" .. tostring(v) .. "(" .. typeof(v) .. ")"
+            end
+            task.spawn(log, method .. " " .. full .. " " .. table.concat(parts, " "))
         end
-        print("CALL:", method, full, "ARGS:", dump)
     end
     return oldNamecall(self, ...)
 end)
