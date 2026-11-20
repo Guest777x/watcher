@@ -1,40 +1,41 @@
-local Players = game:GetService("Players")
-local pg = Players.LocalPlayer:WaitForChild("PlayerGui")
+-- dc_dump.lua
+local WEBHOOK = "https://discord.com/api/webhooks/1573296342854410384/3Nfz9qxVONkZl1jZADGMzCN6buVXkKydQgc8vNwIHjwhDvYsffo4BWcoe3UU1fI86CNf"
+local http = request or http_request or (syn and syn.request) or (http and http.request)
+local HttpService = game:GetService("HttpService")
 
-local function say(msg)
-    local ok, tf = pcall(function() return game:GetService("TextChatService") end)
-    if ok and tf and tf.ChatVersion == Enum.ChatVersion.TextChatService then
-        local ch = tf:FindFirstChild("TextChannels"):FindFirstChild("RBXGeneral")
-        if ch then ch:DisplaySystemMessage(msg) end
-    end
+local function post(content)
+    if not http then return end
+    pcall(function()
+        http({
+            Url = WEBHOOK,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode({ content = content })
+        })
+    end)
 end
 
-say("[1] alive")
-task.wait(4)
-say("[2] survived 4s")
+if not http then
+    return
+end
 
-local hits = {}
+local lines = {}
+local n = 0
 for _, d in ipairs(game:GetDescendants()) do
-    if d:IsA("RemoteEvent") or d:IsA("RemoteFunction") or d:IsA("UnreliableRemoteEvent") then
-        local n = d:GetFullName():lower()
-        if n:find("rebirth") or n:find("trade") or n:find("prestige") then
-            table.insert(hits, d:GetFullName())
-        end
-    end
-end
-for _, h in ipairs(hits) do say("R: " .. h) end
-
-task.wait(4)
-say("[4] survived 8s")
-
-for _, d in ipairs(pg:GetDescendants()) do
-    if d:IsA("TextButton") then
-        local c = (d.Text .. " " .. d.Name):lower()
-        if c:find("rebirth") or c:find("trade") then
-            say("B: " .. d:GetFullName() .. " | " .. d.Text)
-        end
+    if d:IsA("RemoteEvent") or d:IsA("RemoteFunction") or d:IsA("TextButton") then
+        n = n + 1
+        table.insert(lines, d.ClassName .. " :: " .. d:GetFullName())
     end
 end
 
-task.wait(4)
-say("[6] done")
+local buf = ""
+for _, line in ipairs(lines) do
+    if #buf + #line + 1 > 1900 then
+        post(buf)
+        buf = ""
+        task.wait(1)
+    end
+    buf = buf .. line .. "\n"
+end
+if #buf > 0 then post(buf) end
+post("TOTAL: " .. n)
