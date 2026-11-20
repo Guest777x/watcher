@@ -1,49 +1,40 @@
--- single.lua — no hook, no GUI, console output only
 local Players = game:GetService("Players")
 local pg = Players.LocalPlayer:WaitForChild("PlayerGui")
 
-print("[1] alive")
-task.wait(4)
-print("[2] survived 4s")
+local function say(msg)
+    local ok, tf = pcall(function() return game:GetService("TextChatService") end)
+    if ok and tf and tf.ChatVersion == Enum.ChatVersion.TextChatService then
+        local ch = tf:FindFirstChild("TextChannels"):FindFirstChild("RBXGeneral")
+        if ch then ch:DisplaySystemMessage(msg) end
+    end
+end
 
--- list remotes by name
+say("[1] alive")
+task.wait(4)
+say("[2] survived 4s")
+
 local hits = {}
 for _, d in ipairs(game:GetDescendants()) do
     if d:IsA("RemoteEvent") or d:IsA("RemoteFunction") or d:IsA("UnreliableRemoteEvent") then
         local n = d:GetFullName():lower()
-        if n:find("rebirth") or n:find("trade") or n:find("prestige") or n:find("reset") then
+        if n:find("rebirth") or n:find("trade") or n:find("prestige") then
             table.insert(hits, d:GetFullName())
         end
     end
 end
-print("[3] remotes:")
-for _, h in ipairs(hits) do print("   ", h) end
+for _, h in ipairs(hits) do say("R: " .. h) end
 
 task.wait(4)
-print("[4] survived 8s")
+say("[4] survived 8s")
 
--- list buttons by text
-print("[5] buttons:")
 for _, d in ipairs(pg:GetDescendants()) do
-    if d:IsA("TextButton") or d:IsA("ImageButton") then
-        local txt = ""
-        if d:IsA("TextButton") then txt = d.Text end
-        local combined = (txt .. " " .. d.Name):lower()
-        if combined:find("rebirth") or combined:find("trade") or combined:find("prestige") then
-            print("   ", d:GetFullName(), "|", txt)
-            local ok, conns = pcall(getconnections, d.Activated)
-            if ok and conns then
-                for _, c in ipairs(conns) do
-                    local ok2, fn = pcall(function() return c.Function end)
-                    if ok2 and fn then
-                        local info = debug.info(fn, "s")
-                        print("       handler:", info)
-                    end
-                end
-            end
+    if d:IsA("TextButton") then
+        local c = (d.Text .. " " .. d.Name):lower()
+        if c:find("rebirth") or c:find("trade") then
+            say("B: " .. d:GetFullName() .. " | " .. d.Text)
         end
     end
 end
 
 task.wait(4)
-print("[6] survived 12s — done")
+say("[6] done")
