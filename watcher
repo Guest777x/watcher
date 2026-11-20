@@ -1,9 +1,49 @@
-local pg = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-for _, d in ipairs(pg:GetDescendants()) do
-    if d:IsA("TextButton") or d:IsA("ImageButton") then
-        local txt = (d:IsA("TextButton") and d.Text) or d.Name
-        if txt:lower():find("rebirth") or txt:lower():find("trade") then
-            print("BUTTON:", d:GetFullName(), "| TEXT:", txt)
+-- single.lua — no hook, no GUI, console output only
+local Players = game:GetService("Players")
+local pg = Players.LocalPlayer:WaitForChild("PlayerGui")
+
+print("[1] alive")
+task.wait(4)
+print("[2] survived 4s")
+
+-- list remotes by name
+local hits = {}
+for _, d in ipairs(game:GetDescendants()) do
+    if d:IsA("RemoteEvent") or d:IsA("RemoteFunction") or d:IsA("UnreliableRemoteEvent") then
+        local n = d:GetFullName():lower()
+        if n:find("rebirth") or n:find("trade") or n:find("prestige") or n:find("reset") then
+            table.insert(hits, d:GetFullName())
         end
     end
 end
+print("[3] remotes:")
+for _, h in ipairs(hits) do print("   ", h) end
+
+task.wait(4)
+print("[4] survived 8s")
+
+-- list buttons by text
+print("[5] buttons:")
+for _, d in ipairs(pg:GetDescendants()) do
+    if d:IsA("TextButton") or d:IsA("ImageButton") then
+        local txt = ""
+        if d:IsA("TextButton") then txt = d.Text end
+        local combined = (txt .. " " .. d.Name):lower()
+        if combined:find("rebirth") or combined:find("trade") or combined:find("prestige") then
+            print("   ", d:GetFullName(), "|", txt)
+            local ok, conns = pcall(getconnections, d.Activated)
+            if ok and conns then
+                for _, c in ipairs(conns) do
+                    local ok2, fn = pcall(function() return c.Function end)
+                    if ok2 and fn then
+                        local info = debug.info(fn, "s")
+                        print("       handler:", info)
+                    end
+                end
+            end
+        end
+    end
+end
+
+task.wait(4)
+print("[6] survived 12s — done")
