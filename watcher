@@ -1,0 +1,14 @@
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    if method == "FireServer" or method == "InvokeServer" then
+        local full = self:GetFullName()
+        local args = {...}
+        local dump = ""
+        for i, v in ipairs(args) do
+            dump = dump .. " [" .. i .. "]=" .. tostring(v) .. "(" .. typeof(v) .. ")"
+        end
+        print("CALL:", method, full, "ARGS:", dump)
+    end
+    return oldNamecall(self, ...)
+end)
